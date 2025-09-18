@@ -1,0 +1,1 @@
+# esse arquivo será responsável pelos endpoints referentes às predições adicionadas via post

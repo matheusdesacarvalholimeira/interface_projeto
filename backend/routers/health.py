@@ -1,0 +1,1 @@
+# esse arquivo será responsável pelos endpoints referentes a health checks
