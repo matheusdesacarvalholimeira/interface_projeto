@@ -124,30 +124,96 @@ st.dataframe(df_filtrado)
 # -----------------------
 # Mapa de calor (heatmap)
 # -----------------------
-st.subheader("🌍 Mapa de Calor das Ocorrências")
+# st.subheader("🌍 Mapa de Calor das Ocorrências")
 
-if "latitude" in df_filtrado.columns and "longitude" in df_filtrado.columns:
+# if "latitude" in df_filtrado.columns and "longitude" in df_filtrado.columns:
+#     heatmap_layer = pdk.Layer(
+#         "HeatmapLayer",
+#         data=df_filtrado,
+#         get_position="[longitude, latitude]",
+#         get_weight=1,
+#         radiusPixels=40,
+#         intensity=1,
+#         threshold=0.01,
+#     )
+
+#     scatter_layer = pdk.Layer(
+#         "ScatterplotLayer",
+#         data=df_filtrado,
+#         get_position="[longitude, latitude]",
+#         get_color="[200, 30, 0, 160]",
+#         get_radius=40,
+#     )
+
+#     view_state = pdk.ViewState(
+#         latitude=df_filtrado["latitude"].mean(),
+#         longitude=df_filtrado["longitude"].mean(),
+#         zoom=11,
+#         pitch=40,
+#     )
+
+#     deck = pdk.Deck(
+#         layers=[heatmap_layer, scatter_layer],
+#         initial_view_state=view_state,
+#         tooltip={"text": "Bairro: {bairro}\\nCrime: {tipo_crime}\\nData: {data_ocorrencia}"}
+#     )
+
+#     st.pydeck_chart(deck)
+# else:
+#     st.warning("⚠️ Seu dataset não contém latitude/longitude para gerar o mapa.")
+
+# -----------------------
+# Mapa de calor (heatmap) filtrável por bairro
+# -----------------------
+st.subheader("🌍 Mapa de Calor das Ocorrências por Bairro")
+
+# Lista de bairros com opção "Todos"
+bairros_disponiveis = ["Todos"] + sorted(df_filtrado["bairro"].dropna().unique().tolist())
+bairro_selecionado = st.selectbox("Selecione o bairro:", bairros_disponiveis)
+
+# Filtra o dataframe pelo bairro selecionado
+if bairro_selecionado != "Todos":
+    df_heat = df_filtrado[df_filtrado["bairro"] == bairro_selecionado].copy()
+else:
+    df_heat = df_filtrado.copy()
+
+if len(df_heat) == 0:
+    st.warning("Não há ocorrências para o bairro selecionado.")
+else:
+    # Calcula a frequência de cada tipo de crime no bairro
+    freq_crimes = df_heat["tipo_crime"].value_counts()
+    
+    # Normaliza a frequência para criar o peso do heatmap (0 a 1)
+    df_heat["peso"] = df_heat["tipo_crime"].map(lambda x: freq_crimes[x])
+    df_heat["peso"] = df_heat["peso"] / df_heat["peso"].max()
+    
+    # Ajusta radiusPixels dinamicamente para não extrapolar o bairro
+    raio = max(10, min(40, len(df_heat)))  # mínimo 10, máximo 40
+
     heatmap_layer = pdk.Layer(
         "HeatmapLayer",
-        data=df_filtrado,
+        data=df_heat,
         get_position="[longitude, latitude]",
-        get_weight=1,
-        radiusPixels=40,
+        get_weight="peso",
+        radiusPixels=raio,
         intensity=1,
         threshold=0.01,
+        get_color="[255 * peso, 0, 0, 160]"  # vermelho mais intenso para crimes mais comuns
     )
 
+    # Scatter de pontos mantendo como antes
     scatter_layer = pdk.Layer(
         "ScatterplotLayer",
-        data=df_filtrado,
+        data=df_heat,
         get_position="[longitude, latitude]",
         get_color="[200, 30, 0, 160]",
         get_radius=40,
     )
 
+    # Centraliza o mapa no bairro selecionado
     view_state = pdk.ViewState(
-        latitude=df_filtrado["latitude"].mean(),
-        longitude=df_filtrado["longitude"].mean(),
+        latitude=df_heat["latitude"].mean(),
+        longitude=df_heat["longitude"].mean(),
         zoom=11,
         pitch=40,
     )
@@ -155,13 +221,130 @@ if "latitude" in df_filtrado.columns and "longitude" in df_filtrado.columns:
     deck = pdk.Deck(
         layers=[heatmap_layer, scatter_layer],
         initial_view_state=view_state,
-        tooltip={"text": "Bairro: {bairro}\\nCrime: {tipo_crime}\\nData: {data_ocorrencia}"}
+        tooltip={"text": "Bairro: {bairro}\nCrime: {tipo_crime}\nData: {data_ocorrencia}"}
     )
 
     st.pydeck_chart(deck)
-else:
-    st.warning("⚠️ Seu dataset não contém latitude/longitude para gerar o mapa.")
+
+#============================================================
+
+# -----------------------
+# Gráfico: Crimes por mês
+# -----------------------
+st.subheader("📈 Crimes mais comuns por mês")
+
+# Lista de meses
+meses = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+]
+mes_selecionado = st.selectbox("Selecione o mês:", meses)
+num_mes = meses.index(mes_selecionado) + 1  # Janeiro = 1
+
+# Filtra df para o mês selecionado (todos os anos)
+df_mes = df[df["data_ocorrencia"].dt.month == num_mes].copy()
+df_mes["dia"] = df_mes["data_ocorrencia"].dt.day
+
+# Conta ocorrências por dia e tipo de crime
+df_agg = df_mes.groupby(["dia", "tipo_crime"]).size().reset_index(name="quantidade")
+
+# Ordena os crimes do mais comum para o menos comum dentro do mês
+top_crimes = df_mes["tipo_crime"].value_counts().index.tolist()
+df_agg["tipo_crime"] = pd.Categorical(df_agg["tipo_crime"], categories=top_crimes, ordered=True)
+
+# Cria gráfico de linhas
+fig_crimes = px.line(
+    df_agg,
+    x="dia",
+    y="quantidade",
+    color="tipo_crime",
+    title=f"Crimes mais comuns em {mes_selecionado} (todos os anos)",
+    labels={"dia": "Dia do mês", "quantidade": "Ocorrências", "tipo_crime": "Tipo de crime"}
+)
+
+st.plotly_chart(fig_crimes, use_container_width=True)
+
+#============================================================
+
+# -----------------------
+# Formulário: Previsão de Crimes (inclusive datas futuras)
+# -----------------------
+st.subheader("🕵️ Prever Crime Mais Provável")
+
+with st.form(key="prever_crime_form"):
+    col1, col2 = st.columns(2)
     
+    data_input = col1.date_input("Data")
+    bairro_input = col1.selectbox("Bairro", [""] + sorted(df_filtrado["bairro"].dropna().unique().tolist()))
+    
+    latitude_input = col2.number_input("Latitude", value=0.0, format="%.6f")
+    longitude_input = col2.number_input("Longitude", value=0.0, format="%.6f")
+    
+    evento_input = col1.selectbox("Evento", ["Normal"] + sorted(set(df_filtrado["evento_especial"].dropna())))
+    
+    submit_button = st.form_submit_button(label="Prever crimes")
+
+if submit_button:
+    if not bairro_input or latitude_input == 0.0 or longitude_input == 0.0 or not data_input:
+        st.warning("⚠️ Preencha todos os campos para prever o crime.")
+    else:
+        from math import radians, cos, sin, asin, sqrt
+        # Função Haversine para distância
+        def haversine(lat1, lon1, lat2, lon2):
+            R = 6371000  # metros
+            lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            return R * c
+
+        # 1. Tenta histórico exato da data + bairro + evento
+        df_filtro = df_filtrado[
+            (df_filtrado["bairro"] == bairro_input) &
+            (df_filtrado["evento_especial"] == evento_input) &
+            (df_filtrado["data_ocorrencia"].dt.date == data_input)
+        ].copy()
+
+        # 2. Se vazio, histórico do mesmo evento no bairro
+        if len(df_filtro) == 0 and evento_input != "Normal":
+            df_filtro = df_filtrado[
+                (df_filtrado["bairro"] == bairro_input) &
+                (df_filtrado["evento_especial"] == evento_input)
+            ].copy()
+
+        # 3. Se ainda vazio, histórico do mesmo bairro (qualquer evento)
+        if len(df_filtro) == 0:
+            df_filtro = df_filtrado[
+                (df_filtrado["bairro"] == bairro_input)
+            ].copy()
+
+        # 4. Se ainda vazio, histórico geral (qualquer bairro/evento)
+        if len(df_filtro) == 0:
+            df_filtro = df_filtrado.copy()
+
+        # Se houver latitude/longitude, filtra ocorrências próximas (1 km)
+        if len(df_filtro) > 0 and "latitude" in df_filtro.columns and "longitude" in df_filtro.columns:
+            df_filtro["distancia"] = df_filtro.apply(
+                lambda row: haversine(latitude_input, longitude_input, row["latitude"], row["longitude"]),
+                axis=1
+            )
+            df_filtro = df_filtro[df_filtro["distancia"] <= 1000]  # 1 km
+
+            # Se nenhum registro próximo, mantém todos do filtro anterior
+            if len(df_filtro) == 0:
+                df_filtro = df_filtrado[
+                    (df_filtrado["bairro"] == bairro_input)
+                ].copy()
+
+        if len(df_filtro) == 0:
+            st.info("❌ Não há ocorrências históricas suficientes para prever o crime nesse bairro/evento.")
+        else:
+            # Calcula crime mais comum
+            crime_mais_comum = df_filtro["tipo_crime"].value_counts().idxmax()
+            st.success(f"Crime mais provável: **{crime_mais_comum}**")
+            st.info(f"Baseado em {len(df_filtro)} ocorrência(s) histórica(s) usadas para previsão.")
+
 #============================================================
 
 st.subheader("📑 Ocorrências com Prioridade")

@@ -5,3 +5,6 @@ joblib
 pandas
 numpy
 gunicorn
+streamlit
+plotly
+streamlit-aggrid
