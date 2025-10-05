@@ -4,6 +4,8 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import pydeck as pdk
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import joblib
+
 
 # -----------------------
 # Processamento dos eventos
@@ -346,6 +348,93 @@ if submit_button:
             st.info(f"Baseado em {len(df_filtro)} ocorrência(s) histórica(s) usadas para previsão.")
 
 #============================================================
+
+st.header("Análise de Agrupamento (Cluster de Ocorrências)")
+
+try:
+    kmeans = joblib.load("models/modelo_kmeans.pkl")
+    preprocessor = joblib.load("models/preprocessador.pkl")
+    cluster_insights = joblib.load("models/cluster_insights.pkl")
+    modelo_carregado = True
+except Exception as e:
+    st.error(f"Erro ao carregar os modelos: {e}")
+    modelo_carregado = False
+
+
+if modelo_carregado:
+    st.subheader("Insira os dados da nova ocorrência:")
+
+    with st.form("form_cluster"):
+        col1, col2 = st.columns(2)
+
+        descricao = col1.text_area("Descrição do modus operandi", "")
+        bairro = col1.selectbox("Bairro", sorted(df["bairro"].dropna().unique().tolist()))
+        tipo_crime = col1.selectbox("Tipo de crime", sorted(df["tipo_crime"].dropna().unique().tolist()))
+        arma = col2.selectbox("Arma utilizada", sorted(df["arma_utilizada"].dropna().unique().tolist()))
+        sexo_suspeito = col2.selectbox("Sexo do suspeito", ["Masculino", "Feminino", "Não informado"])
+        idade_suspeito = col2.number_input("Idade do suspeito", min_value=10, max_value=90, value=25)
+        qtd_vitimas = col1.number_input("Quantidade de vítimas", min_value=0, value=1)
+        qtd_suspeitos = col1.number_input("Quantidade de suspeitos", min_value=1, value=1)
+        data_input = col1.date_input("Data da ocorrência", value=pd.Timestamp.now().date())
+        hora_input = col2.time_input("Hora da ocorrência", value=pd.Timestamp.now().time())
+
+        submit_cluster = st.form_submit_button("🔍 Classificar ocorrência")
+
+    if submit_cluster:
+        data_ocorrencia_input = pd.to_datetime(f"{data_input} {hora_input}")
+        nova_ocorrencia = pd.DataFrame([{
+            "descricao_modus_operandi": descricao,
+            "bairro": bairro,
+            "tipo_crime": tipo_crime,
+            "arma_utilizada": arma,
+            "sexo_suspeito": sexo_suspeito,
+            "quantidade_vitimas": qtd_vitimas,
+            "quantidade_suspeitos": qtd_suspeitos,
+            "idade_suspeito": idade_suspeito,
+            "data_ocorrencia": pd.to_datetime(data_ocorrencia_input)
+        }])
+
+        # Extrai colunas temporais (ano, mês, dia, hora)
+        nova_ocorrencia["ano"] = nova_ocorrencia["data_ocorrencia"].dt.year
+        nova_ocorrencia["mes"] = nova_ocorrencia["data_ocorrencia"].dt.month
+        nova_ocorrencia["dia"] = nova_ocorrencia["data_ocorrencia"].dt.day
+        nova_ocorrencia["hora"] = nova_ocorrencia["data_ocorrencia"].dt.hour
+
+        # Remove a coluna original de data
+        nova_ocorrencia = nova_ocorrencia.drop(columns=["data_ocorrencia"])
+
+        try:
+            # Aplica o mesmo pré-processamento do treino
+            X_proc = preprocessor.transform(nova_ocorrencia)
+
+            # Prediz o cluster
+            cluster_pred = int(kmeans.predict(X_proc)[0])
+
+            # Exibe o resultado
+            st.success(f"🏷️ A ocorrência pertence ao **Cluster {cluster_pred}**")
+
+            # Exibe insights do cluster, se disponíveis
+            if cluster_insights and cluster_pred in cluster_insights:
+                info = cluster_insights[cluster_pred]
+                st.markdown(f"""
+                ### 🔎 Características do Cluster {cluster_pred}
+                - **Crimes predominantes:** {', '.join(info['tipos_crime'])}
+                - **Bairros mais frequentes:** {', '.join(info['bairros'])}
+                - **Faixa etária média dos suspeitos:** {info['idade_media']} anos
+                - **Sexo predominante:** {info['sexo_predominante']}
+                - **Armas mais usadas:** {', '.join(info['armas'])}
+                """)
+                
+                st.info(info["descricao_textual"])
+
+        except Exception as e:
+            st.error(f"Erro ao processar a ocorrência: {e}")
+
+else:
+    st.warning("⚠️ Modelos de agrupamento não foram carregados corretamente.")
+
+
+
 
 st.subheader("📑 Ocorrências com Prioridade")
 
