@@ -6,6 +6,7 @@ import pydeck as pdk
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import joblib
 from math import radians, cos, sin, asin, sqrt
+import requests
 
 # -----------------------
 # Processamento dos eventos
@@ -308,6 +309,8 @@ elif pagina == "Análise Mensal":
 # -----------------------
 elif pagina == "Previsão de Crimes":
     st.title("🕵️ Previsão de Crime Mais Provável")
+
+    API_URL = "http://127.0.0.1:8000/predict"
     
     # Filtro por período (reutilizando para consistência)
     min_date = df["data_ocorrencia"].min()
@@ -337,6 +340,41 @@ elif pagina == "Previsão de Crimes":
         if not bairro_input or latitude_input == 0.0 or longitude_input == 0.0 or not data_input:
             st.warning("⚠️ Preencha todos os campos para prever o crime.")
         else:
+            payload = {
+                "data_ocorrencia": data_input.strftime("%Y-%m-%d"),
+                "latitude": latitude_input,
+                "longitude": longitude_input,
+                "bairro": bairro_input,
+                "is_event": 0 if evento_input == "Normal" else 1,
+            }
+
+            api_disponivel = False
+
+            with st.spinner('Consultando o modelo de previsão...'):
+                try:
+                    response = requests.post(API_URL, json=payload, timeout=10)
+
+                    if response.status_code == 200:
+                        predictions = response.json().get("predictions")
+                        st.subheader("🤖 Previsão do Modelo Preditivo")
+                        
+                        if predictions:
+                            crime_mais_provavel = predictions[0]["tipo_crime"]
+                            probabilidade = predictions[0]["prob"]
+                            st.success(f"**Crime mais provável: {crime_mais_provavel.upper()}**")
+                            st.metric(label="Confiança do Modelo", value=f"{probabilidade:.2%}")
+                            api_disponivel = True
+                    else:
+                        st.error(f"Erro na API de previsão: {response.status_code}")
+                        st.caption(response.text)
+
+                except requests.exceptions.RequestException:
+                    st.warning("Erro: A API de previsão não está respondendo.")
+            
+            st.markdown("---")
+            
+            st.subheader("📈 Análise do Histórico Local")
+
             # Função Haversine para distância
             def haversine(lat1, lon1, lat2, lon2):
                 R = 6371000  # metros
@@ -392,7 +430,7 @@ elif pagina == "Previsão de Crimes":
                 crime_mais_comum = df_filtro["tipo_crime"].value_counts().idxmax()
                 st.success(f"Crime mais provável: **{crime_mais_comum}**")
                 st.info(f"Baseado em {len(df_filtro)} ocorrência(s) histórica(s) usadas para previsão.")
-
+                
 # -----------------------
 # Página Agrupamento e Priorização (Clustering + Prioridade)
 # -----------------------

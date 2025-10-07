@@ -8,3 +8,4 @@ gunicorn
 streamlit
 plotly
 streamlit-aggrid
+uvicorn
