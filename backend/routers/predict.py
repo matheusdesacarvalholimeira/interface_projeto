@@ -20,8 +20,6 @@ router = APIRouter(prefix="/predict")
 
 class Ocorrencia(BaseModel):
     data_ocorrencia: str
-    latitude: float
-    longitude: float
     bairro: str
     is_event: int
     idade_suspeito: int = 30
@@ -37,8 +35,6 @@ async def fazerPredicao(ocorrencia: Ocorrencia):
         "dia_da_semana": data_dt.weekday(),
         "is_event": ocorrencia.is_event,
         "bairro": ocorrencia.bairro,
-        "latitude": ocorrencia.latitude,
-        "longitude": ocorrencia.longitude,
         "idade_suspeito": ocorrencia.idade_suspeito
     }
 

@@ -8,6 +8,7 @@ import joblib
 from math import radians, cos, sin, asin, sqrt
 import requests
 import os
+from dotenv import load_dotenv
 
 
 load_dotenv()
