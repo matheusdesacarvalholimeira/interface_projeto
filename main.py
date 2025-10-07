@@ -7,6 +7,10 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import joblib
 from math import radians, cos, sin, asin, sqrt
 import requests
+import os
+
+
+load_dotenv()
 
 # -----------------------
 # Processamento dos eventos
@@ -310,7 +314,7 @@ elif pagina == "Análise Mensal":
 elif pagina == "Previsão de Crimes":
     st.title("🕵️ Previsão de Crime Mais Provável")
 
-    API_URL = "http://127.0.0.1:8000/predict"
+    API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/predict")
     
     # Filtro por período (reutilizando para consistência)
     min_date = df["data_ocorrencia"].min()
