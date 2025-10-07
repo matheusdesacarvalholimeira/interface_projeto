@@ -309,8 +309,6 @@ elif pagina == "Análise Mensal":
 # -----------------------
 elif pagina == "Previsão de Crimes":
     st.title("🕵️ Previsão de Crime Mais Provável")
-
-    API_URL = "http://127.0.0.1:8000/predict"
     
     # Filtro por período (reutilizando para consistência)
     min_date = df["data_ocorrencia"].min()
@@ -328,101 +326,38 @@ elif pagina == "Previsão de Crimes":
         
         data_input = col1.date_input("Data da Previsão")
         bairro_input = col1.selectbox("Bairro", [""] + sorted(df_filtrado["bairro"].dropna().unique().tolist()))
-        
-        latitude_input = col2.number_input("Latitude", value=0.0, format="%.6f")
-        longitude_input = col2.number_input("Longitude", value=0.0, format="%.6f")
-        
-        evento_input = col1.selectbox("Evento", ["Normal"] + sorted(set(df_filtrado["evento_especial"].dropna())))
+        evento_input = col2.selectbox("Evento", ["Normal"] + sorted(set(df_filtrado["evento_especial"].dropna())))
         
         submit_button = st.form_submit_button(label="Prever Crimes")
     
     if submit_button:
-        if not bairro_input or latitude_input == 0.0 or longitude_input == 0.0 or not data_input:
+        if not bairro_input or not data_input:
             st.warning("⚠️ Preencha todos os campos para prever o crime.")
         else:
-            payload = {
-                "data_ocorrencia": data_input.strftime("%Y-%m-%d"),
-                "latitude": latitude_input,
-                "longitude": longitude_input,
-                "bairro": bairro_input,
-                "is_event": 0 if evento_input == "Normal" else 1,
-            }
-
-            api_disponivel = False
-
-            with st.spinner('Consultando o modelo de previsão...'):
-                try:
-                    response = requests.post(API_URL, json=payload, timeout=10)
-
-                    if response.status_code == 200:
-                        predictions = response.json().get("predictions")
-                        st.subheader("🤖 Previsão do Modelo Preditivo")
-                        
-                        if predictions:
-                            crime_mais_provavel = predictions[0]["tipo_crime"]
-                            probabilidade = predictions[0]["prob"]
-                            st.success(f"**Crime mais provável: {crime_mais_provavel.upper()}**")
-                            st.metric(label="Confiança do Modelo", value=f"{probabilidade:.2%}")
-                            api_disponivel = True
-                    else:
-                        st.error(f"Erro na API de previsão: {response.status_code}")
-                        st.caption(response.text)
-
-                except requests.exceptions.RequestException:
-                    st.warning("Erro: A API de previsão não está respondendo.")
-            
-            st.markdown("---")
-            
-            st.subheader("📈 Análise do Histórico Local")
-
-            # Função Haversine para distância
-            def haversine(lat1, lon1, lat2, lon2):
-                R = 6371000  # metros
-                lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-                dlat = lat2 - lat1
-                dlon = lon2 - lon1
-                a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-                c = 2 * asin(sqrt(a))
-                return R * c
-    
             # 1. Tenta histórico exato da data + bairro + evento
             df_filtro = df_filtrado[
                 (df_filtrado["bairro"] == bairro_input) &
                 (df_filtrado["evento_especial"] == evento_input) &
                 (df_filtrado["data_ocorrencia"].dt.date == data_input)
             ].copy()
-    
+
             # 2. Se vazio, histórico do mesmo evento no bairro
             if len(df_filtro) == 0 and evento_input != "Normal":
                 df_filtro = df_filtrado[
                     (df_filtrado["bairro"] == bairro_input) &
                     (df_filtrado["evento_especial"] == evento_input)
                 ].copy()
-    
+
             # 3. Se ainda vazio, histórico do mesmo bairro (qualquer evento)
             if len(df_filtro) == 0:
                 df_filtro = df_filtrado[
                     (df_filtrado["bairro"] == bairro_input)
                 ].copy()
-    
+
             # 4. Se ainda vazio, histórico geral (qualquer bairro/evento)
             if len(df_filtro) == 0:
                 df_filtro = df_filtrado.copy()
-    
-            # Se houver latitude/longitude, filtra ocorrências próximas (1 km)
-            if len(df_filtro) > 0 and "latitude" in df_filtro.columns and "longitude" in df_filtro.columns:
-                df_filtro["distancia"] = df_filtro.apply(
-                    lambda row: haversine(latitude_input, longitude_input, row["latitude"], row["longitude"]),
-                    axis=1
-                )
-                df_filtro = df_filtro[df_filtro["distancia"] <= 1000]  # 1 km
-    
-                # Se nenhum registro próximo, mantém todos do filtro anterior
-                if len(df_filtro) == 0:
-                    df_filtro = df_filtrado[
-                        (df_filtrado["bairro"] == bairro_input)
-                    ].copy()
-    
+
             if len(df_filtro) == 0:
                 st.info("❌ Não há ocorrências históricas suficientes para prever o crime nesse bairro/evento.")
             else:
@@ -430,7 +365,7 @@ elif pagina == "Previsão de Crimes":
                 crime_mais_comum = df_filtro["tipo_crime"].value_counts().idxmax()
                 st.success(f"Crime mais provável: **{crime_mais_comum}**")
                 st.info(f"Baseado em {len(df_filtro)} ocorrência(s) histórica(s) usadas para previsão.")
-                
+            
 # -----------------------
 # Página Agrupamento e Priorização (Clustering + Prioridade)
 # -----------------------
