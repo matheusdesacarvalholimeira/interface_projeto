@@ -103,14 +103,13 @@ if pagina == "Home":
     
     **Perguntas-chave:**
     - Onde e quando há maior risco de ocorrências criminais?
-    - Quais padrões distinguem roubos de furtos ou outros crimes?
-    - Como correlacionar ocorrências por similaridade (modus operandi, local, tempo)?
+    - Quais as similaridades entre as ocorrências e a qual grupo ela pertence? (modus operandi, local, tempo)?
     
     ### Nossa Solução
     Desenvolvemos um protótipo funcional (PoC) baseado em Machine Learning para classificar e prever padrões criminais, correlacionar ocorrências e gerar insights visuais. Público-alvo: Equipes de investigação da Polícia Civil de Pernambuco (PC-PE) e setores de inteligência.
     
     **Foco em Aprendizagem Supervisionada:**
-    - MVP que resolve classificação (ex.: tipo de crime) e previsão (ex.: probabilidade em janelas de tempo por região).
+    - MVP que resolve classificação de agrupamento (ex.: A qual grupo esse crime pertence) e previsão (ex.: probabilidade em janelas de tempo por região).
     - Inclui data storytelling, pipeline de pré-processamento, avaliação quantitativa e justificativa de modelos.
     
     ### Metodologia
@@ -118,7 +117,7 @@ if pagina == "Home":
     1. **Definição do Problema:** Baseado em estatísticas reais do mundo (não apenas dados internos) para defender a problemática.
     2. **História de Dados (Data Storytelling):** Contexto, perguntas-chave, visões exploratórias (distribuições, séries temporais, mapas de calor).
     3. **Pipeline de Dados:** Limpeza, encoding, split temporal (evitando vazamento).
-    4. **Modelagem:** Baseline (DummyClassifier) + Modelos (Random Forest, XGBoost). Usamos técnica de cotovelo para clusters ideais (ex.: 2 clusters).
+    4. **Modelagem:** Clusterização (Kmeans) + Modelos (Random Forest, XGBoost). Usamos técnica de cotovelo para clusters ideais (ex.: 3 clusters).
     5. **Métricas:** Precision, ROC-AUC, Matriz de Confusão.
     6. **Interpretação:** Importância de features (SHAP), análise de erros.
     7. **Justificativa:** Escolha baseada em desempenho, interpretabilidade e custo.
@@ -127,7 +126,7 @@ if pagina == "Home":
     **Requisitos Não Funcionais:**
     - Conformidade com LGPD: Anonimização de dados (sem PII).
     - Reprodutibilidade: requirements.txt.
-    - Organização do Repositório: /data, /notebooks, /src, /reports.
+    - Organização do Repositório: /models, /backend.
     
     Esta aplicação é deployada no Streamlit Cloud para atualizações automáticas via repositório GitHub.
     """)
