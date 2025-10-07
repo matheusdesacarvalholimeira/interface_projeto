@@ -117,16 +117,16 @@ if pagina == "Home":
     Aplicamos uma abordagem estruturada, priorizando a metodologia sobre a qualidade intrínseca dos dados:
     1. **Definição do Problema:** Baseado em estatísticas reais do mundo (não apenas dados internos) para defender a problemática.
     2. **História de Dados (Data Storytelling):** Contexto, perguntas-chave, visões exploratórias (distribuições, séries temporais, mapas de calor).
-    3. **Pipeline de Dados:** Limpeza, balanceamento (SMOTE/undersampling), encoding, split temporal (evitando vazamento).
-    4. **Modelagem:** Baseline (DummyClassifier) + Modelos (Regressão Logística, Random Forest, XGBoost). Usamos técnica de cotovelo para clusters ideais (ex.: 2 clusters).
-    5. **Métricas:** Precision, Recall, F1, ROC-AUC, Matriz de Confusão, F1@k para hotspots.
+    3. **Pipeline de Dados:** Limpeza, encoding, split temporal (evitando vazamento).
+    4. **Modelagem:** Baseline (DummyClassifier) + Modelos (Random Forest, XGBoost). Usamos técnica de cotovelo para clusters ideais (ex.: 2 clusters).
+    5. **Métricas:** Precision, ROC-AUC, Matriz de Confusão.
     6. **Interpretação:** Importância de features (SHAP), análise de erros.
     7. **Justificativa:** Escolha baseada em desempenho, interpretabilidade e custo.
     8. **Visualizações:** Dashboards interativos com mapas, gráficos e tabelas.
     
     **Requisitos Não Funcionais:**
     - Conformidade com LGPD: Anonimização de dados (sem PII).
-    - Reprodutibilidade: requirements.txt, seeds fixas, README com instruções.
+    - Reprodutibilidade: requirements.txt.
     - Organização do Repositório: /data, /notebooks, /src, /reports.
     
     Esta aplicação é deployada no Streamlit Cloud para atualizações automáticas via repositório GitHub.
