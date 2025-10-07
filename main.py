@@ -7,6 +7,11 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import joblib
 from math import radians, cos, sin, asin, sqrt
 import requests
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 # -----------------------
 # Processamento dos eventos
@@ -309,6 +314,8 @@ elif pagina == "Análise Mensal":
 # -----------------------
 elif pagina == "Previsão de Crimes":
     st.title("🕵️ Previsão de Crime Mais Provável")
+
+    API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/predict")
     
     # Filtro por período (reutilizando para consistência)
     min_date = df["data_ocorrencia"].min()
@@ -334,6 +341,41 @@ elif pagina == "Previsão de Crimes":
         if not bairro_input or not data_input:
             st.warning("⚠️ Preencha todos os campos para prever o crime.")
         else:
+            st.info("ℹ️ O modelo preditivo atual **não utiliza mais latitude e longitude** para a previsão.")
+            
+            payload = {
+                "data_ocorrencia": data_input.strftime("%Y-%m-%d"),
+                "bairro": bairro_input,
+                "is_event": 0 if evento_input == "Normal" else 1,
+            }
+
+            api_disponivel = False
+
+            with st.spinner('Consultando o modelo de previsão...'):
+                try:
+                    response = requests.post(API_URL, json=payload, timeout=10)
+
+                    if response.status_code == 200:
+                        predictions = response.json().get("predictions")
+                        st.subheader("🤖 Previsão do Modelo Preditivo")
+                        
+                        if predictions:
+                            crime_mais_provavel = predictions[0]["tipo_crime"]
+                            probabilidade = predictions[0]["prob"]
+                            st.success(f"**Crime mais provável: {crime_mais_provavel.upper()}**")
+                            st.metric(label="Confiança do Modelo", value=f"{probabilidade:.2%}")
+                            api_disponivel = True
+                    else:
+                        st.error(f"Erro na API de previsão: {response.status_code}")
+                        st.caption(response.text)
+
+                except requests.exceptions.RequestException:
+                    st.warning("Erro: A API de previsão não está respondendo.")
+            
+            st.markdown("---")
+            
+            st.subheader("📈 Análise do Histórico Local")
+
             # 1. Tenta histórico exato da data + bairro + evento
             df_filtro = df_filtrado[
                 (df_filtrado["bairro"] == bairro_input) &
@@ -357,7 +399,7 @@ elif pagina == "Previsão de Crimes":
             # 4. Se ainda vazio, histórico geral (qualquer bairro/evento)
             if len(df_filtro) == 0:
                 df_filtro = df_filtrado.copy()
-
+    
             if len(df_filtro) == 0:
                 st.info("❌ Não há ocorrências históricas suficientes para prever o crime nesse bairro/evento.")
             else:
@@ -365,7 +407,8 @@ elif pagina == "Previsão de Crimes":
                 crime_mais_comum = df_filtro["tipo_crime"].value_counts().idxmax()
                 st.success(f"Crime mais provável: **{crime_mais_comum}**")
                 st.info(f"Baseado em {len(df_filtro)} ocorrência(s) histórica(s) usadas para previsão.")
-            
+
+                
 # -----------------------
 # Página Agrupamento e Priorização (Clustering + Prioridade)
 # -----------------------

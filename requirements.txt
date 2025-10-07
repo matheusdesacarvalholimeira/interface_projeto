@@ -9,3 +9,4 @@ streamlit
 plotly
 streamlit-aggrid
 uvicorn
+python-dotenv
